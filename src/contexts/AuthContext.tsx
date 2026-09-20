@@ -1,16 +1,6 @@
-// MUST be first import – patches storage before Supabase reads from it (hosted mode only)
-if (import.meta.env.VITE_BACKEND_MODE !== 'local') {
-  // Side-effect import: patches Supabase auth storage synchronously
-  // In local mode this is a no-op because the real supabase client isn't used for auth
-  import('@/lib/patch-supabase-auth');
-}
-
 import React, { createContext, useContext, useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 import { db } from '@/services/db';
-
-const isLocalMode = import.meta.env.VITE_BACKEND_MODE === 'local';
-const REFRESH_INTERVAL_MS = 55 * 60 * 1000; // 55 minutes - safe for 60-minute tokens
 
 interface AuthContextType {
   user: User | null;
@@ -39,9 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
   const currentUserIdRef = useRef<string | null>(null);
   const wasLoggedInRef = useRef(false);
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isRefreshingRef = useRef(false);
-  const lastRefreshRef = useRef<number>(Date.now());
 
   const checkAdminRole = async (userId: string): Promise<boolean> => {
     try {
@@ -64,51 +51,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const performRefresh = useCallback(async () => {
-    if (isRefreshingRef.current || isLocalMode) return;
-    isRefreshingRef.current = true;
-
-    try {
-      const { error } = await db.auth.refreshSession();
-      if (error) {
-        console.error('Session refresh failed:', error.message);
-      }
-    } catch (err) {
-      console.error('Error refreshing session:', err);
-    } finally {
-      isRefreshingRef.current = false;
-    }
-  }, []);
-
-  const scheduleRefresh = useCallback(() => {
-    if (isLocalMode) return; // Local mode uses long-lived tokens
-
-    if (refreshTimerRef.current) {
-      clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-
-    refreshTimerRef.current = setTimeout(() => {
-      performRefresh();
-    }, REFRESH_INTERVAL_MS);
-
-    lastRefreshRef.current = Date.now();
-  }, [performRefresh]);
-
   useEffect(() => {
     let isMounted = true;
 
     const { data: { subscription } } = db.auth.onAuthStateChange(
       (event: string, session: any) => {
         if (!isMounted) return;
-
-        if (event === 'TOKEN_REFRESHED') {
-          if (session) {
-            sessionRef.current = session;
-            scheduleRefresh();
-          }
-          return;
-        }
 
         if (event === 'INITIAL_SESSION') return;
         if (event === 'SIGNED_OUT') return;
@@ -119,13 +67,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             currentUserIdRef.current = session.user.id;
             sessionRef.current = session;
             setUser(session.user);
-            scheduleRefresh();
             checkAdminRole(session.user.id).then(result => {
               if (isMounted) setIsAdmin(result);
             });
           } else {
             sessionRef.current = session;
-            scheduleRefresh();
           }
         }
       }
@@ -135,10 +81,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data: { session } } = await db.auth.getSession();
 
-        if (!isLocalMode) {
-          await db.auth.stopAutoRefresh();
-        }
-
         if (!isMounted) return;
 
         sessionRef.current = session ?? null;
@@ -147,7 +89,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.user) {
           wasLoggedInRef.current = true;
-          scheduleRefresh();
           const adminResult = await checkAdminRole(session.user.id);
           if (isMounted) setIsAdmin(adminResult);
         }
@@ -160,26 +101,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    const handleVisibilityChange = () => {
-      if (isLocalMode) return;
-      if (document.visibilityState === 'visible' && sessionRef.current) {
-        const elapsed = Date.now() - lastRefreshRef.current;
-        if (elapsed > 5 * 60 * 1000) {
-          performRefresh();
-        }
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
       isMounted = false;
       subscription.unsubscribe();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (refreshTimerRef.current) {
-        clearTimeout(refreshTimerRef.current);
-      }
     };
-  }, [scheduleRefresh, performRefresh]);
+  }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error, data } = await db.auth.signInWithPassword({
@@ -205,11 +131,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = useCallback(async () => {
-    if (refreshTimerRef.current) {
-      clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-
     currentUserIdRef.current = null;
     sessionRef.current = null;
     wasLoggedInRef.current = false;

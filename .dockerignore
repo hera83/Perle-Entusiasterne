@@ -3,6 +3,4 @@ dist
 .git
 .gitignore
 README.md
-.env
-.lovable
 supabase

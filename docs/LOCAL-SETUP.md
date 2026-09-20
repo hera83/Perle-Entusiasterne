@@ -2,27 +2,21 @@
 
 ## Oversigt
 
-Projektet understøtter to driftsformer:
+Projektet kører selvstændigt med en Express + PostgreSQL backend (`server/`) — ingen ekstern Supabase-afhængighed.
 
-1. **Hosted Mode** (standard): Bruger Lovable Cloud / Supabase
-2. **Local Mode**: Selvstændig drift med PostgreSQL + TypeScript backend
-
-## Hurtigstart (Local Mode)
+## Hurtigstart
 
 ```bash
-# 1. Kopiér env-fil
-cp .env.local.example .env.local
+# Start alt med Docker Compose - ingen .env-fil nødvendig, alle værdier er faste i docker-compose.yml
+docker compose up --build
 
-# 2. Ret JWT_SECRET og passwords i .env.local til sikre værdier
-
-# 3. Start alt med Docker Compose
-docker compose -f docker-compose.local.yml --env-file .env.local up --build
-
-# 4. Åbn appen
+# Åbn appen
 # Frontend: http://localhost:8080
 # Backend API: http://localhost:3001
 # Database: localhost:5433
 ```
+
+For at ændre porte, `JWT_SECRET`, database-password osv., rediger værdierne direkte i `docker-compose.yml`.
 
 ## Første gang
 
@@ -40,8 +34,7 @@ Når appen starter op for første gang uden brugere, vises en "Opret første adm
 
 ### Frontend
 - Vite/React app bygget til Nginx
-- Skifter datakilde via `VITE_BACKEND_MODE=local`
-- Proxy-lag i `src/services/db.ts` sikrer at komponenter fungerer i begge modes
+- `src/services/db.ts` re-eksporterer `src/services/local-client.ts`, som er den eneste database-klient og ruter alle kald til backend'en
 
 ### Backend (`server/`)
 - Express + TypeScript
@@ -55,24 +48,25 @@ Når appen starter op for første gang uden brugere, vises en "Opret første adm
 
 ## Miljøvariabler
 
+Der er ingen `.env`-fil — alle værdier er hardcodet direkte i `docker-compose.yml`. Rediger filen for at ændre dem:
+
 | Variabel | Beskrivelse | Standard |
 |----------|-------------|----------|
-| `VITE_BACKEND_MODE` | `local` for lokal drift | (tom = hosted) |
-| `VITE_LOCAL_API_URL` | Backend URL | `http://localhost:3001` |
+| `VITE_LOCAL_API_URL` | Backend URL set fra frontend-build | (tom = samme-origin `/api`-proxy) |
 | `POSTGRES_DB` | Database navn | `perleplade` |
 | `POSTGRES_PASSWORD` | Database password | `postgres` |
-| `JWT_SECRET` | JWT signerings-nøgle | (skift i produktion!) |
-| `APP_PORT` | Frontend port | `8080` |
-| `BACKEND_PORT` | Backend port | `3001` |
+| `JWT_SECRET` | JWT signerings-nøgle | (skift hvis stakken eksponeres udenfor lokalnetværket) |
+| App-port (host) | Frontend port | `8080` |
+| Backend-port (host) | Backend port | `3001` |
 
 ## Stop og reset
 
 ```bash
 # Stop
-docker compose -f docker-compose.local.yml --env-file .env.local down
+docker compose down
 
 # Stop og slet al data (fuld reset)
-docker compose -f docker-compose.local.yml --env-file .env.local down -v
+docker compose down -v
 ```
 
 ## Produktion
