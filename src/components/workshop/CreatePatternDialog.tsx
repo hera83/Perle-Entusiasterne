@@ -313,9 +313,9 @@ export const CreatePatternDialog: React.FC<CreatePatternDialogProps> = ({
                 id="plateWidth"
                 type="number"
                 min={1}
-                max={10}
+                max={15}
                 value={plateWidth}
-                onChange={(e) => setPlateWidth(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                onChange={(e) => setPlateWidth(Math.max(1, Math.min(15, parseInt(e.target.value) || 1)))}
               />
             </div>
             <div className="grid gap-2">
@@ -324,9 +324,9 @@ export const CreatePatternDialog: React.FC<CreatePatternDialogProps> = ({
                 id="plateHeight"
                 type="number"
                 min={1}
-                max={10}
+                max={15}
                 value={plateHeight}
-                onChange={(e) => setPlateHeight(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                onChange={(e) => setPlateHeight(Math.max(1, Math.min(15, parseInt(e.target.value) || 1)))}
               />
             </div>
           </div>

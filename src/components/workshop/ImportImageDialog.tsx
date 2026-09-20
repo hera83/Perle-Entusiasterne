@@ -732,9 +732,9 @@ export const ImportImageDialog: React.FC<ImportImageDialogProps> = ({
                     id="import-plateWidth"
                     type="number"
                     min={1}
-                    max={10}
+                    max={15}
                     value={plateWidth}
-                    onChange={(e) => setPlateWidth(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                    onChange={(e) => setPlateWidth(Math.max(1, Math.min(15, parseInt(e.target.value) || 1)))}
                   />
                 </div>
                 <div className="grid gap-2">
