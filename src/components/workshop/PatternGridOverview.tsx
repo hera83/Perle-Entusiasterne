@@ -199,7 +199,7 @@ export const PatternGridOverview: React.FC<PatternGridOverviewProps> = ({
       <div className="overflow-auto">
         <div 
           className="inline-grid gap-3"
-          style={{ gridTemplateColumns: `repeat(${plateWidth}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${plateWidth}, minmax(140px, 1fr))` }}
         >
           {grid.map((row, rowIndex) =>
             row.map((plate, colIndex) => (
